@@ -1,5 +1,6 @@
 (ns life.multiverse.core
   (:require [datahike.api :as dh]
+            [clojure.set :as cset]
             [datahike.core :as d]))
 
 (defn board->next-board [board]
@@ -53,12 +54,20 @@
 (defn modify-board
   "creates a new game of life based off additions and removals of cells
 
+  board: Set - Set of cells for the game of life
+  add: Set - Set of cells to be added to the board.
+  remove: Set - Set of cells to be removed from the board.
+
+  Addition of cells overwrites any cell removal (i.e. cells get removed from the board then added)
+
+  (modify-board #{[2 2] [0 0] [5 4] [1 7] [0 2]} #{[11 11] [5 8] [7 6]} #{[11 11] [2 2] [5 4]})
+  ; => #{[7 6] [0 0] [11 11] [1 7] [5 8] [0 2]}
   Invariants
   running modify board twice with the same add and remove gives the same board
   the only cells in the modified board are in the original or add sets
   Add overrides remove"
   [board add remove]
-  board)
+  (cset/union (cset/difference board remove) add))
 
 (defn branch-board
   "creates a new game of life based off of a current board at a specific time
