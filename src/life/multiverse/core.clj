@@ -94,13 +94,24 @@
   board-a)
 
 (defn board-diff
-  "Gives the cells that were added and removed by two boards
+  "Gives the cells that were added and removed by a step in the game
 
+  initial-board: Set - The starting board the step will be applied to
+  changed-board: Set - The new cells for the board after the step was applied to the initial-board
+
+  The added cells are new cells in the changed-board that are not present in the initial-board. The removed
+  cells are cells that are not present in the changed-board but are in the initial-board. The unchanged cells
+  are the cells present in both boards
+
+  (board-diff #{[4 3] [8 4] [4 6] [5 7] [1 5]} #{[8 4] [8 6] [6 6] [5 7] [1 5]})
+  ; => {:added #{[8 6] [6 6]}, :removed #{[4 3] [4 6]}, :unchanged #{[8 4] [5 7] [1 5]}}
   Invariants
   Diffing an empty board puts everything in added
   Diffing the same board puts everything in removed"
   [initial-board changed-board]
-  {:added #{} :removed #{}})
+  {:added (cset/difference changed-board initial-board)
+   :removed (cset/difference initial-board changed-board)
+   :unchanged (cset/intersection initial-board changed-board)})
 
 (defn boards-equal
   "checks if two boards are equal"
