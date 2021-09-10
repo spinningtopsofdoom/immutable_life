@@ -39,9 +39,16 @@
     :db/cardinality :db.cardinality/one}])
 
 (defn starting-board
-  "Creates a new game populated game board"
-  []
-  #{})
+  "Creates a new game randomly populated game board with the number of cells specified
+
+  cell-num: Long - The number of cells to add to a board. Default of 20
+
+  (starting-board 5)
+  ; => #{[8 6] [9 9] [1 3] [5 1] [2 6]} or
+  ; => #{[5 3] [4 1] [5 2] [7 0] [6 0]}"
+  ([] (starting-board 20))
+  ([cell-num]
+   (into #{} (map (fn cell [_] (mapv long ((juxt rand-int rand-int) 10))) (range cell-num)))))
 
 (defn modify-board
   "creates a new game of life based off additions and removals of cells
