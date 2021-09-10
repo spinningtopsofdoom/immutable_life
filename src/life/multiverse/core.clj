@@ -5,8 +5,8 @@
 
 (defn board->next-board [board]
   (let [removed-cells (into #{} (take 3 board))
-        added-cells (into #{} (map (fn cell [_] (map long ((juxt rand-int rand-int) 10))) (range 5)))]
-    (clojure.set/union (clojure.set/difference board removed-cells) added-cells)))
+        added-cells (into #{} (map (fn cell [_] (mapv long ((juxt rand-int rand-int) 10))) (range 5)))]
+    (cset/union (cset/difference board removed-cells) added-cells)))
 
 (defn board->storage [board]
   (mapv (fn [[x y]] {:board/x x :board/y y}) board))
