@@ -9,7 +9,7 @@
     (cset/union (cset/difference board removed-cells) added-cells)))
 
 (defn board->storage [board]
-  (mapv (fn [[x y]] {:board/x x :board/y y}) board))
+  (mapv (fn [[x y]] {:board/x x :board/y y :piece/hash (long (hash [x y]))}) board))
 
 (defn storage->db [board-storage name db]
   (dh/transact
@@ -32,6 +32,10 @@
    {:db/ident       :game/pieces
     :db/valueType   :db.type/ref
     :db/cardinality :db.cardinality/many}
+   {:db/ident       :piece/hash
+    :db/valueType   :db.type/long
+    :db/unique      :db.unique/identity
+    :db/cardinality :db.cardinality/one}
    {:db/ident       :board/x
     :db/valueType   :db.type/long
     :db/cardinality :db.cardinality/one}
