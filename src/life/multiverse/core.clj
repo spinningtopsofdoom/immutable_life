@@ -144,7 +144,11 @@
   "Gets a game of life board given a game name
 
   game-name: String - Unique name of the game of life
-  db: datahike.db.DB - Datahike database for the game of life"
+  db: datahike.db.DB - Datahike database for the game of life
+
+  (storage->db (board->storage #{[7 1] [5 3] [9 9] [1 8]}) \"ns/game-name\" db)
+  (db->board \"ns/game-name\" db)
+  ; => #{[7 1] [5 3] [9 9] [1 8]}"
   [game-name db]
   (dh/q
     '[:find ?x ?y
