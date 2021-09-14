@@ -119,9 +119,20 @@
   false)
 
 (defn db->board
-  "Gets a game of life board given a game name"
+  "Gets a game of life board given a game name
+
+  game-name: String - Unique name of the game of life
+  db: datahike.db.DB - Datahike database for the game of life"
   [game-name db]
-  #{})
+  (dh/q
+    '[:find ?x ?y
+      :in $ ?game
+      :where
+      [?e :game/name ?game]
+      [?e :game/pieces ?pieces]
+      [?pieces :board/x ?x]
+      [?pieces :board/y ?y]]
+    @db game-name))
 
 (defn db-at-time->board
   "Gets a game of life board given a game name at a given time"
