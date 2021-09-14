@@ -11,11 +11,29 @@
 (defn board->storage [board]
   (mapv (fn [[x y]] {:board/x x :board/y y :piece/hash (long (hash [x y]))}) board))
 
-(defn storage->db [board-storage name db]
-  (dh/transact
-    db
-    [{:game/name   name
-      :game/pieces board-storage}]))
+(defn storage->db
+  "Puts the life board from storage into the database.
+
+  board-storage: Map - Map of the board pieces in database format: x, y, and the hash
+  name: String - Name of the game to update the board
+  db: datahike.db.DB - Datahike database for the game of life"
+  [board-storage name db]
+  (let [hashes (set (map :piece/hash board-storage))
+        piece-retractions (dh/q
+                            '[:find ?retract ?e ?a ?pieces
+                              :in $ ?game [?hash ...]
+                              :where
+                              [?e :game/name ?game]
+                              [?e :game/pieces ?pieces]
+                              [(ground :db/retract) ?retract]
+                              [(ground :game/pieces) ?a]
+                              (not [?pieces :piece/hash ?hash])]
+                            @db name hashes)
+        new-pieces {:game/name   name
+                    :game/pieces board-storage}]
+    (dh/transact
+      db
+      (conj (vec piece-retractions) new-pieces))))
 
 (defn db-setup [config]
   (dh/delete-database config)
