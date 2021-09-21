@@ -161,9 +161,37 @@
     @db game-name))
 
 (defn db-at-time->board
-  "Gets a game of life board given a game name at a given time"
+  "Gets a game of life board given a game name at a given time
+
+  game-name: String - Unique name of the game of life
+  game-time: Integer - Integer timestamp for each step in the game of life (0, 1, 2, 3, 4...)
+  db: datahike.db.DB - Datahike database for the game of life
+
+  (storage->db (board->storage #{[7 1] [5 3]}) \"ns/game-name\" db)
+  (storage->db (board->storage #{[7 1] [5 3] [9 9] [1 8]}) \"ns/game-name\" db)
+  (storage->db (board->storage #{[7 1] [9 9]}) \"ns/game-name\" db)
+
+  (db->board \"ns/game-name\" 0 db)
+  ; => #{[7 1] [5 3]}
+  (db->board \"ns/game-name\" 2 db)
+  ; => #{[7 1] [9 9]}
+  (db->board \"ns/game-name\" 3 db)
+  ; => nil
+
+  If the game time is beyond the number of steps then nil is returned"
   [game-name game-time db]
-  #{})
+  (let [game-datoms (dh/datoms @db {:index :avet :components [:game/name game-name]})
+        tx-time-id (-> game-datoms (nth game-time nil) :tx)]
+    (when tx-time-id
+      (dh/q
+        '[:find ?x ?y
+          :in $ ?game ?t
+          :where
+          [?e :game/name ?game]
+          [?e :game/pieces ?pieces ?t true]
+          [?pieces :board/x ?x]
+          [?pieces :board/y ?y]]
+        (dh/history @db) game-name tx-time-id))))
 
 (defn game-history
   "Gives the history of a particular game of life played out"
