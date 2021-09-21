@@ -194,9 +194,31 @@
         (dh/history @db) game-name tx-time-id))))
 
 (defn game-history
-  "Gives the history of a particular game of life played out"
+  "Gives a history sequence of a particular game of life played out
+
+  game-name: String - Unique name of the game of life
+  db: datahike.db.DB - Datahike database for the game of life
+
+  (storage->db (board->storage #{[7 1] [5 3]}) \"ns/game-name\" db)
+  (storage->db (board->storage #{[7 1] [5 3] [9 9] [1 8]}) \"ns/game-name\" db)
+  (storage->db (board->storage #{[7 1] [9 9]}) \"ns/game-name\" db)
+
+  (game-history \"ns/game-name\" db)
+  ; => (#{[7 1] [5 3]} #{[7 1] [5 3] [9 9] [1 8]} #{[7 1] [9 9]})"
   [game-name db]
-  [])
+  (let [game-datoms (dh/datoms @db {:index :avet :components [:game/name game-name]})
+        tx-id-seq (map :tx game-datoms)]
+    (map
+      (fn life-at-time [life-time]
+        (dh/q
+          '[:find ?x ?y
+            :in $ ?t
+            :where
+            [_ :game/pieces ?pieces ?t true]
+            [?pieces :board/x ?x]
+            [?pieces :board/y ?y]]
+          (dh/history @db) life-time))
+      tx-id-seq)))
 
 (comment
   (def init-board #{})
