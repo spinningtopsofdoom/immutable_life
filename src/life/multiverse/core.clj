@@ -135,10 +135,29 @@
    :removed (cset/difference initial-board changed-board)
    :unchanged (cset/intersection initial-board changed-board)})
 
+(defn normalize-board
+  "Normalizes a game of life board
+
+  board: Set - Set of points on a game of life board
+
+  (normalize-board #{[8 8] [9 2] [4 5] [6 9] [3 2]})
+  ; => #{[0 0] [1 3] [5 6] [3 7] [6 0]}"
+  [board]
+  (let [min-x (apply min (map first board))
+        min-y (apply min (map second board))]
+    (into #{} (map (fn normalize [[x y]] [(- x min-x) (- y min-y)]) board))))
+
 (defn boards-equal
-  "checks if two boards are equal"
+  "checks if two normalized boards are equal
+
+  (boards-equal #{[8 8] [7 6] [7 1] [8 5] [6 9]} #{[2 9] [4 8] [3 6] [4 5] [3 1]})
+  ; => true
+  (boards-equal #{[8 7] [6 3]} #{[2 3] [4 7]})
+  ; => true
+  (boards-equal #{[8 7] [6 3]} #{[2 3] [4 5]})
+  ; => false"
   [board-a board-b]
-  false)
+  (= (normalize-board board-a) (normalize-board board-b)))
 
 (defn db->board
   "Gets a game of life board given a game name
