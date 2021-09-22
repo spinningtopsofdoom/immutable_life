@@ -209,10 +209,10 @@
           :in $ ?game ?t
           :where
           [?e :game/name ?game]
-          [?e :game/pieces ?pieces ?t true]
+          [?e :game/pieces ?pieces ?t]
           [?pieces :board/x ?x]
           [?pieces :board/y ?y]]
-        (dh/history @db) game-name tx-time-id))))
+        (dh/as-of @db tx-time-id) game-name tx-time-id))))
 
 (defn game-history
   "Gives a history sequence of a particular game of life played out
@@ -235,10 +235,10 @@
           '[:find ?x ?y
             :in $ ?t
             :where
-            [_ :game/pieces ?pieces ?t true]
+            [_ :game/pieces ?pieces ?t]
             [?pieces :board/x ?x]
             [?pieces :board/y ?y]]
-          (dh/history @db) life-time))
+          (dh/as-of @db life-time) life-time))
       tx-id-seq)))
 
 (comment
