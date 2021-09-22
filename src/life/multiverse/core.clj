@@ -19,16 +19,18 @@
   db: datahike.db.DB - Datahike database for the game of life"
   [board-storage name db]
   (let [hashes (set (map :piece/hash board-storage))
-        piece-retractions (dh/q
-                            '[:find ?retract ?e ?a ?pieces
-                              :in $ ?game [?hash ...]
-                              :where
-                              [?e :game/name ?game]
-                              [?e :game/pieces ?pieces]
-                              [(ground :db/retract) ?retract]
-                              [(ground :game/pieces) ?a]
-                              (not [?pieces :piece/hash ?hash])]
-                            @db name hashes)
+        removed-pieces (dh/q
+                         '[:find [?pieces ...]
+                           :in $ ?game [?hash ...]
+                           :where
+                           [?e :game/name ?game]
+                           [?e :game/pieces ?pieces]
+                           (not [?pieces :piece/hash ?hash])]
+                         @db name hashes)
+        piece-retractions (mapv
+                            (fn id-to-retract [piece-id]
+                              [:db/retract [:game/name name] :game/pieces piece-id])
+                            removed-pieces)
         new-pieces {:game/name   name
                     :game/pieces board-storage}]
     (dh/transact
