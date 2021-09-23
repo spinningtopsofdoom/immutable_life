@@ -243,20 +243,40 @@
       tx-id-seq)))
 
 (comment
-  (def init-board #{})
+  (def initial-board (starting-board 5))
+  (def game-name "user/foo")
+  (def boards (vec (take 4 (iterate board->next-board initial-board))))
 
-  (let [db-conn (db-setup cfg)
-        game-name "user/foo"
-        boards (take 3 (drop 1 (iterate board->next-board init-board)))]
+  (def db-conn (db-setup cfg))
+  (do
     (dh/transact db-conn schema)
     (doseq [board boards]
-      (board->db board game-name db-conn))
-    (dh/q
-      '[:find ?x ?y
-        :in $ ?game
-        :where
-        [?e :game/name ?game]
-        [?e :game/pieces ?pieces]
-        [?pieces :board/x ?x]
-        [?pieces :board/y ?y]]
-      @db-conn "user/foo")))
+      (board->db board game-name db-conn)))
+  ; Check that the current database board matches the last inserted board
+  (= (last boards) (db->board game-name db-conn))
+  ; Check that each board matches each point in time retrieval
+  (map-indexed
+    (fn time-equals [i board]
+      (= (nth boards i) (db-at-time->board game-name i db-conn)))
+    boards)
+  ; Check that the boards inserted match the database history
+  (= boards (game-history game-name db-conn))
+  ; Check that database retractions match board removals
+  (let [board-removals (->> (partition 2 1 boards)
+                         (map #(apply board-diff %1))
+                         (map :removed))
+        db-removals (dh/q
+                      '[:find ?t ?x ?y
+                        :where
+                        [?e :game/pieces ?pieces ?t false]
+                        [?pieces :board/x ?x]
+                        [?pieces :board/y ?y]]
+                      (dh/history @db-conn))
+        grouped-removals (group-by first db-removals)
+        removals (->>
+                   (sort (keys grouped-removals))
+                   (map grouped-removals)
+                   (map (fn here [removal]
+                          (into #{} (map (fn there [[_ x y]] [x y])) removal))))]
+    (= removals board-removals))
+  ,)
