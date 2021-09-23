@@ -1,7 +1,6 @@
 (ns life.multiverse.core
   (:require [datahike.api :as dh]
-            [clojure.set :as cset]
-            [datahike.core :as d]))
+            [clojure.set :as cset]))
 
 (defn board->next-board [board]
   (let [removed-cells (into #{} (take 3 board))
