@@ -10,21 +10,23 @@
 (defn board->storage [board]
   (mapv (fn [[x y]] {:board/x x :board/y y :piece/hash (long (hash [x y]))}) board))
 
-(defn storage->db
+(defn board->db
   "Puts the life board from storage into the database.
 
-  board-storage: Map - Map of the board pieces in database format: x, y, and the hash
+  board: Set - Set of the board pieces in x y coordinates
   name: String - Name of the game to update the board
   db: datahike.db.DB - Datahike database for the game of life"
-  [board-storage name db]
-  (let [hashes (set (map :piece/hash board-storage))
+  [board name db]
+  (let [board-storage (board->storage board)
+        hashes (set (map :piece/hash board-storage))
         removed-pieces (dh/q
                          '[:find [?pieces ...]
-                           :in $ ?game [?hash ...]
+                           :in $ ?game ?hashes
                            :where
                            [?e :game/name ?game]
                            [?e :game/pieces ?pieces]
-                           (not [?pieces :piece/hash ?hash])]
+                           [?pieces :piece/hash ?hash]
+                           (not [(?hashes ?hash)])]
                          @db name hashes)
         piece-retractions (mapv
                             (fn id-to-retract [piece-id]
@@ -166,7 +168,7 @@
   game-name: String - Unique name of the game of life
   db: datahike.db.DB - Datahike database for the game of life
 
-  (storage->db (board->storage #{[7 1] [5 3] [9 9] [1 8]}) \"ns/game-name\" db)
+  (board->db #{[7 1] [5 3] [9 9] [1 8]} \"ns/game-name\" db)
   (db->board \"ns/game-name\" db)
   ; => #{[7 1] [5 3] [9 9] [1 8]}"
   [game-name db]
@@ -187,9 +189,9 @@
   game-time: Integer - Integer timestamp for each step in the game of life (0, 1, 2, 3, 4...)
   db: datahike.db.DB - Datahike database for the game of life
 
-  (storage->db (board->storage #{[7 1] [5 3]}) \"ns/game-name\" db)
-  (storage->db (board->storage #{[7 1] [5 3] [9 9] [1 8]}) \"ns/game-name\" db)
-  (storage->db (board->storage #{[7 1] [9 9]}) \"ns/game-name\" db)
+  (board->db #{[7 1] [5 3]} \"ns/game-name\" db)
+  (board->db #{[7 1] [5 3] [9 9] [1 8]} \"ns/game-name\" db)
+  (board->db #{[7 1] [9 9]} \"ns/game-name\" db)
 
   (db->board \"ns/game-name\" 0 db)
   ; => #{[7 1] [5 3]}
@@ -219,9 +221,9 @@
   game-name: String - Unique name of the game of life
   db: datahike.db.DB - Datahike database for the game of life
 
-  (storage->db (board->storage #{[7 1] [5 3]}) \"ns/game-name\" db)
-  (storage->db (board->storage #{[7 1] [5 3] [9 9] [1 8]}) \"ns/game-name\" db)
-  (storage->db (board->storage #{[7 1] [9 9]}) \"ns/game-name\" db)
+  (board->db #{[7 1] [5 3]} \"ns/game-name\" db)
+  (board->db #{[7 1] [5 3] [9 9] [1 8]} \"ns/game-name\" db)
+  (board->db #{[7 1] [9 9]} \"ns/game-name\" db)
 
   (game-history \"ns/game-name\" db)
   ; => (#{[7 1] [5 3]} #{[7 1] [5 3] [9 9] [1 8]} #{[7 1] [9 9]})"
@@ -248,7 +250,7 @@
         boards (take 3 (drop 1 (iterate board->next-board init-board)))]
     (dh/transact db-conn schema)
     (doseq [board boards]
-      (storage->db (board->storage board) game-name db-conn))
+      (board->db board game-name db-conn))
     (dh/q
       '[:find ?x ?y
         :in $ ?game
