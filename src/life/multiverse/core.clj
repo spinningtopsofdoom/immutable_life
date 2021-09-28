@@ -193,27 +193,33 @@
   (board->db #{[7 1] [5 3] [9 9] [1 8]} \"ns/game-name\" db)
   (board->db #{[7 1] [9 9]} \"ns/game-name\" db)
 
-  (db->board \"ns/game-name\" 0 db)
+  (db-at-time->board \"ns/game-name\" 0 db)
   ; => #{[7 1] [5 3]}
-  (db->board \"ns/game-name\" 2 db)
+  (db-at-time->board \"ns/game-name\" 2 db)
   ; => #{[7 1] [9 9]}
-  (db->board \"ns/game-name\" 3 db)
+  (db-at-time->board \"ns/game-name\" 3 db)
   ; => nil
 
   If the game time is beyond the number of steps then nil is returned"
   [game-name game-time db]
-  (let [game-datoms (dh/datoms @db {:index :avet :components [:game/name game-name]})
-        tx-time-id (-> game-datoms (nth game-time nil) :tx)]
-    (when tx-time-id
+  (let [game-datoms (dh/datoms @db {:index :avet :components [:game/name game-name]})]
+    (when-let [tx-time-id (-> game-datoms (nth game-time nil) :tx)]
       (dh/q
         '[:find ?x ?y
           :in $ ?game ?t
           :where
           [?e :game/name ?game]
-          [?e :game/pieces ?pieces ?t]
+          [(dh/q
+             [:find  ?pieces (max ?tx)
+              :in $ ?pe ?pt
+              :where
+              [?pe :game/pieces ?pieces ?tx]
+              [(<= ?tx ?pt)]]
+             $ ?e ?t) [[?pieces ?maxtx]]]
+          [?e :game/pieces ?pieces ?maxtx true]
           [?pieces :board/x ?x]
           [?pieces :board/y ?y]]
-        (dh/as-of @db tx-time-id) game-name tx-time-id))))
+        (dh/history @db) game-name tx-time-id))))
 
 (defn game-history
   "Gives a history sequence of a particular game of life played out
