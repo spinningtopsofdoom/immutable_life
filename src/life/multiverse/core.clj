@@ -232,21 +232,31 @@
   (board->db #{[7 1] [9 9]} \"ns/game-name\" db)
 
   (game-history \"ns/game-name\" db)
-  ; => (#{[7 1] [5 3]} #{[7 1] [5 3] [9 9] [1 8]} #{[7 1] [9 9]})"
-  [game-name db]
-  (let [game-datoms (dh/datoms @db {:index :avet :components [:game/name game-name]})
-        tx-id-seq (map :tx game-datoms)]
-    (map
-      (fn life-at-time [life-time]
-        (dh/q
-          '[:find ?x ?y
-            :in $ ?t
-            :where
-            [_ :game/pieces ?pieces ?t]
-            [?pieces :board/x ?x]
-            [?pieces :board/y ?y]]
-          (dh/as-of @db life-time) life-time))
-      tx-id-seq)))
+  ; => (#{[7 1] [5 3]} #{[7 1] [5 3] [9 9] [1 8]} #{[7 1] [9 9]})
+  (game-history \"ns/game-name\" 1 db)
+  ; => (#{[7 1] [5 3] [9 9] [1 8]} #{[7 1] [9 9]})"
+  ([game-name db] (game-history game-name 0 db))
+  ([game-name start-id db]
+   (when-let [init-board (db-at-time->board game-name start-id db)]
+     (let [tx-ids (map :tx (dh/datoms @db {:index :avet :components [:game/name game-name]}))
+           tx-board-diff (fn board-change [tx-id]
+                           (dh/q
+                             '[:find ?x ?y
+                               :in $ ?game ?t
+                               :where
+                               [?e :game/name ?game]
+                               [?e :game/pieces ?pieces ?t]
+                               [?pieces :board/x ?x]
+                               [?pieces :board/y ?y]]
+                             (dh/history @db) game-name tx-id))]
+       (reductions
+         (fn next-board
+           [current-board tx-id]
+           (let [board-diff (tx-board-diff tx-id)
+                 removed-cells (cset/intersection board-diff current-board)]
+             (cset/difference (cset/union current-board board-diff) removed-cells)))
+         init-board
+         (drop (inc start-id) tx-ids))))))
 
 (comment
   (def initial-board (starting-board 5))
