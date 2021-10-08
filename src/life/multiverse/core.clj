@@ -94,14 +94,6 @@
   [board add remove]
   (cset/union (cset/difference board remove) add))
 
-(defn branch-board
-  "creates a new game of life based off of a current board at a specific time
-
-  Invariants
-  The branched board will be equal to the old board"
-  [board-time game-name new-game-name]
-  #{})
-
 (defn branch-modified-board
   "creates a new game of life based off of a current board at a specific time
 
@@ -258,6 +250,43 @@
          init-board
          (drop (inc start-id) tx-ids))))))
 
+(defn branch-board
+  "creates a new game of life based off of a current board at a specific time
+
+  game-name: String - Unique name of the game of life
+  game-time: Integer - Integer timestamp for each step in the game of life (0, 1, 2, 3, 4...)
+  new-game-name: String - Unique name of the game of life
+  db: datahike.db.DB - Datahike database for the game of life
+
+  (board->db #{[7 1] [5 3]} \"ns/game-name\" db)
+  (board->db #{[7 1] [5 3] [9 9] [1 8]} \"ns/game-name\" db)
+  (board->db #{[7 1] [9 9]} \"ns/game-name\" db)
+
+  (db->board \"ns/new-game-name\" db)
+  ; => #{}
+  (branch-board \"ns/game-name\" \"ns/new-game-name\" db)
+  (db->board \"ns/new-game-name\" db)
+  ; => #{[7 1] [9 9]}
+
+  (branch-board \"ns/game-name\" 1 \"ns/new-game-name\" db)
+  (db->board \"ns/new-game-name\" db)
+  ; => #{[7 1] [5 3] [9 9] [1 8]}
+  Invariants
+  The branched board will be equal to the old board"
+  ([game-name new-game-name db] (branch-board game-name nil new-game-name db))
+  ([game-name board-time new-game-name db]
+   (let
+     [new-board (if board-time
+                  (db-at-time->board game-name board-time db)
+                  (db->board game-name db))
+      new-storage (board->storage new-board)
+      insert-fn (fn insert [db-conn name]
+                  (if (dh/entity db-conn [:game/name name])
+                    (throw (ex-info (str "Game with name " name " already exists.") {}))
+                    [{:game/name   name
+                      :game/pieces new-storage}]))]
+     (dh/transact db [[:db.fn/call insert-fn new-game-name]]))))
+
 (comment
   (def initial-board (starting-board 5))
   (def game-name "user/foo")
@@ -295,4 +324,10 @@
                    (map (fn here [removal]
                           (into #{} (map (fn there [[_ x y]] [x y])) removal))))]
     (= removals board-removals))
+
+  (branch-board game-name "user/bar" db-conn)
+  (= (db->board game-name db-conn) (db->board "user/bar" db-conn))
+
+  (branch-board game-name 2 "user/baz" db-conn)
+  (= (db-at-time->board game-name 2 db-conn) (db->board "user/baz" db-conn))
   ,)
